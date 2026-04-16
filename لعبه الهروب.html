@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>School Escape FULL PRO</title>
+
+<style>
+body{margin:0;overflow:hidden;font-family:Arial;background:#000;}
+canvas{display:block;}
+
+#hud{
+position:fixed;
+top:10px;left:10px;
+background:#00000080;
+color:white;
+padding:10px;
+border-radius:10px;
+display:none;
+z-index:10;
+}
+
+#mobileUI{
+position:fixed;
+bottom:10px;
+width:100%;
+text-align:center;
+display:none;
+z-index:10;
+}
+
+button{
+padding:10px;
+margin:5px;
+border-radius:10px;
+font-size:16px;
+}
+
+#select{
+position:fixed;
+inset:0;
+background:#000;
+color:white;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+z-index:999;
+}
+
+#countdown{
+position:fixed;
+inset:0;
+display:none;
+justify-content:center;
+align-items:center;
+font-size:100px;
+color:white;
+background:#000;
+z-index:998;
+}
+
+/* SHOP */
+#shop{
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:#111;
+color:white;
+padding:20px;
+border-radius:15px;
+display:none;
+z-index:9999;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- HUD -->
+<div id="hud">
+📏 Distance: <span id="dist">0</span><br>
+🏁 Level: <span id="lvl">1</span><br>
+🪙 Coins: <span id="coins">0</span><br>
+<button onclick="openShop()">🏪 المتجر</button>
+</div>
+
+<!-- MOBILE -->
+<div id="mobileUI">
+<button onpointerdown="jump()">⬆ Jump</button>
+</div>
+
+<!-- SELECT -->
+<div id="select">
+<h1>🎮 اختر جهازك</h1>
+<button onclick="setDevice('pc')">🖥 كمبيوتر</button>
+<button onclick="setDevice('mobile')">📱 هاتف</button>
+</div>
+
+<!-- COUNTDOWN -->
+<div id="countdown"></div>
+
+<!-- SHOP -->
+<div id="shop">
+<h2>🏪 المتجر</h2>
+<button onclick="buy()">🔥 Skin = 50 Coins</button>
+<br><br>
+<button onclick="closeShop()">❌ إغلاق</button>
+</div>
+
+<script>
+const c=document.getElementById("c");
+const ctx=c.getContext("2d");
+
+c.width=innerWidth;
+c.height=innerHeight;
+
+/* STATE */
+let started=false;
+let device="pc";
+let gameOverState=false;
+
+/* LEVEL */
+let level=1;
+let speed=6;
+
+/* PLAYER */
+let player={
+x:100,y:0,w:50,h:50,vy:0,onGround:false
+};
+
+/* WORLD */
+let gravity=0.6;
+let groundY=350;
+let camera=0;
+let distance=0;
+
+/* COINS */
+let coins=0;
+
+/* OBSTACLES */
+let obs=[];
+
+function createObstacles(){
+obs=[];
+for(let i=0;i<25;i++){
+let baseX=400+i*280;
+obs.push({x:baseX,y:groundY});
+obs.push({x:baseX+140,y:groundY-170});
+}
+}
+createObstacles();
+
+/* DEVICE */
+function setDevice(d){
+device=d;
+document.getElementById("select").style.display="none";
+
+if(device==="mobile"){
+document.getElementById("mobileUI").style.display="block";
+}
+
+startCountdown();
+}
+
+/* CONTROLS */
+function jump(){
+if(player.onGround && !gameOverState){
+player.vy=-12;
+player.onGround=false;
+}
+}
+
+document.addEventListener("keydown",(e)=>{
+if(device!=="pc") return;
+if(e.key==="ArrowUp") jump();
+if(e.key==="b") openShop();
+});
+
+/* START COUNTDOWN */
+function startCountdown(){
+let box=document.getElementById("countdown");
+box.style.display="flex";
+
+let nums=["3","2","1","GO!"];
+let i=0;
+
+let interval=setInterval(()=>{
+
+box.innerText=nums[i];
+
+if(i===nums.length-1){
+clearInterval(interval);
+
+setTimeout(()=>{
+box.style.display="none";
+startGame();
+},600);
+}
+
+i++;
+
+},1000);
+}
+
+/* START GAME */
+function startGame(){
+document.getElementById("hud").style.display="block";
+started=true;
+gameOverState=false;
+loop();
+}
+
+/* SHOP */
+function openShop(){
+document.getElementById("shop").style.display="block";
+}
+
+function closeShop(){
+document.getElementById("shop").style.display="none";
+}
+
+function buy(){
+if(coins>=50){
+coins-=50;
+alert("🔥 Skin تم شراؤه!");
+}
+}
+
+/* RESET */
+function resetGame(){
+player.x=100;
+player.y=0;
+player.vy=0;
+camera=0;
+distance=0;
+player.onGround=false;
+
+level=1;
+speed=6;
+createObstacles();
+}
+
+/* 🟥 COUNTDOWN عند الموت */
+function deathCountdown(){
+let box=document.getElementById("countdown");
+box.style.display="flex";
+
+let nums=["3","2","1","GO!"];
+let i=0;
+
+let interval=setInterval(()=>{
+
+box.innerText=nums[i];
+
+if(i===nums.length-1){
+clearInterval(interval);
+
+setTimeout(()=>{
+box.style.display="none";
+resetGame();
+gameOverState=false;
+loop();
+},600);
+}
+
+i++;
+
+},1000);
+}
+
+/* GAME LOOP */
+function loop(){
+
+if(!started || gameOverState) return;
+
+/* physics */
+player.vy+=gravity;
+player.y+=player.vy;
+
+if(player.y>groundY){
+player.y=groundY;
+player.vy=0;
+player.onGround=true;
+}
+
+player.x+=speed;
+
+/* camera */
+camera+=(player.x-200-camera)*0.08;
+
+distance=Math.floor(player.x/10);
+
+/* LEVEL */
+if(distance>level*200){
+level++;
+speed+=1;
+createObstacles();
+coins+=10;
+}
+
+/* collision */
+for(let o of obs){
+if(
+player.x<o.x+30 &&
+player.x+30>o.x &&
+player.y<o.y+30 &&
+player.y+30>o.y
+){
+gameOver();
+}
+}
+
+draw();
+
+/* HUD */
+document.getElementById("dist").innerText=distance;
+document.getElementById("lvl").innerText=level;
+document.getElementById("coins").innerText=coins;
+
+requestAnimationFrame(loop);
+}
+
+/* DRAW */
+function draw(){
+ctx.clearRect(0,0,c.width,c.height);
+
+/* ground */
+ctx.fillStyle="#2ecc71";
+ctx.fillRect(0,groundY+40,c.width,200);
+
+/* player */
+ctx.fillStyle="yellow";
+ctx.beginPath();
+ctx.arc(player.x-camera+20,player.y+10,10,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillRect(player.x-camera+12,player.y+18,16,20);
+
+/* obstacles */
+for(let o of obs){
+ctx.fillStyle=o.y<groundY?"red":"gray";
+ctx.fillRect(o.x-camera,o.y,30,30);
+}
+}
+
+/* GAME OVER */
+function gameOver(){
+if(gameOverState) return;
+
+gameOverState=true;
+setTimeout(()=>deathCountdown(),300);
+}
+</script>
+
+</body>
+</html>
